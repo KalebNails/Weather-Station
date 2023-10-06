@@ -1,5 +1,6 @@
 #Kaleb Nails
 #9/12/2023
+#Updated: 10/6/2023
 
 import serial
 import socket
@@ -7,7 +8,6 @@ from bokeh.io import curdoc
 from bokeh.layouts import layout
 from bokeh.models import ColumnDataSource, Slider,RangeSlider
 from bokeh.plotting import figure
-
 import pandas as pd
 import subprocess
 from datetime import datetime
@@ -17,7 +17,6 @@ from bokeh.io import output_file, show
 #This is for hitting Ctrl C
 import time
 import signal
-import threading
 import subprocess
 
 
@@ -89,14 +88,8 @@ def slider_callback(attr, old, new):
     #print(global_last_value)
     #print(global_start_value)
 
-
-
 #N_slider.on_change('value',slider_callback)
 N_slider.on_change('value_throttled',slider_callback)
-
-
-
-
 
 
 def callback_update_data():

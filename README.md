@@ -1,6 +1,18 @@
 # Weather-Station #
 This is the supporting code to the remote weather station
 
+## Bokeh_weather_station.py ##
+this is an earlier version of read_speed_test that uses a different method to plot 10M data points. This has some threading in it that just constantly rereads the CSV, not an incredible method to hand this issue.
+
+## read_speed_test.py ##
+This uses bokeh to display data points one multiple graphs with a window that the user can control. This can work with roughly up to 10M points of data and still have pretty reliable loading speeds and times. 
+The most important things to save time I learned was:
+1. not reading the entire file, there is a way with pandas to only read certain rows, and there is also a way using the terminal to get how many rows are in a csv without opening it
+2. using Webgl setting in some of the bokeh functions, it is just a empirically faster way to graph
+3. throttlelock the slider so it doesn't try to make a new plot for each point you pass over while moving the slider itself
+4. pandas resample, this helps the bokeh graph faster, but this is not that fast itself, and there is a sweet spot between bokeh plotting speed and resample speed
+
+
 ## Meeting Questions 10/12/2023 ##
 ![image](https://github.com/KalebNails/Weather-Station/assets/102830532/5571e9c8-c885-41e3-819d-9fc379b9b20b)
 

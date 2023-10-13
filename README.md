@@ -16,7 +16,7 @@ Wind Max is over 3 seconds is that a correct time frame for our puposes over 24 
 
 
 Also I hit the none fatal error below:
-![image](https://github.com/KalebNails/Weather-Station/assets/102830532/a2bdbc23-e5f7-4805-bef9-1500e2828820)
+![image](https://github.com/KalebNails/Weather-Station/assets/102830532/5fc9831b-59e9-4d2c-96f5-51b3159eba2c)
 
 does the equation: deg_C + 243.5 *value / (17.67 - value)
 immediately mean anything to you? I don't exactly know where this takes place in the code and is a little hard to find, but I was wondering if you could possibly point me in a direction in if its reltated to RH or temp or etc.

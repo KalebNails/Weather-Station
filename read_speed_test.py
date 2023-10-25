@@ -19,7 +19,7 @@ import time
 import signal
 import subprocess
 
-
+#bokeh serve --show read_speed_test.py port=5001
 def handle_interrupt(signal, frame):
     print("Ctrl+C pressed. Performing cleanup or other actions...")
     # Add your code to perform cleanup or other actions here

@@ -14,14 +14,40 @@ from metpy.cbook import get_test_data
 from metpy.plots import add_metpy_logo
 from metpy.units import units
 import pandas as pd
-#questions 1:
-# we have 3d wind data how should we plot that, how do we plot gusts, also any idea on why this is a constant line
-
-
 
 
 def calc_mslp(t, p, h):
     return p * (1 - (0.0065 * h) / (t + 0.0065 * h + 273.15)) ** (-5.257)
+
+
+# I just stole this code.
+from functools import wraps
+import tracemalloc
+from time import perf_counter
+
+
+def measure_performance(func):
+    '''Measure performance of a function'''
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        tracemalloc.start()
+        start_time = perf_counter()
+        result = func(*args, **kwargs)
+        current, peak = tracemalloc.get_traced_memory()
+        finish_time = perf_counter()
+        print(f'Function: {func.__name__}')
+        #print(f'Method: {func.__doc__}')
+        print(f'Memory usage:\t\t {current / 10**6:.6f} MB \n'
+              f'Peak memory usage:\t {peak / 10**6:.6f} MB ')
+        print(f'Time elapsed is seconds: {finish_time - start_time:.6f}')
+        print(f'{"-"*40}')
+        tracemalloc.stop()
+        return result
+    return wrapper
+
+
+
 
 
 # Make meteogram plot
@@ -32,7 +58,7 @@ class Meteogram:
     variable.
     TO DO: Make the subplot creation dynamic so the number of rows is not
     static as it is currently. """
-
+    @measure_performance
     def __init__(self, fig, dates, probeid, time=None, axis=0):
         """
         Required input:
@@ -53,6 +79,7 @@ class Meteogram:
         self.time = time.strftime('%Y-%m-%d %H:%M UTC')
         self.title = f'Latest Ob Time: {self.time}\nProbe ID: {probeid}'
 
+    @measure_performance
     def plot_winds(self, ws, wd, wsmax, plot_range=None):
         """
         Required input:
@@ -86,6 +113,7 @@ class Meteogram:
         ax7.legend(lines, labs, loc='upper center',
                    bbox_to_anchor=(0.5, 1.2), ncol=3, prop={'size': 12})
 
+    @measure_performance
     def plot_thermo(self, t, td, plot_range=None):
         """
         Required input:
@@ -118,6 +146,7 @@ class Meteogram:
         self.ax2.legend(lines, labs, loc='upper center',
                         bbox_to_anchor=(0.5, 1.2), ncol=2, prop={'size': 12})
 
+    @measure_performance
     def plot_rh(self, rh, plot_range=None):
         """
         Required input:
@@ -141,6 +170,7 @@ class Meteogram:
         axtwin.set_ylim(ymin, ymax)
         axtwin.yaxis.set_major_locator(MultipleLocator(ystep))
 
+    @measure_performance
     def plot_pressure(self, p, plot_range=None):
         """
         Required input:
@@ -181,12 +211,14 @@ hgt_example = 292.
 def parse_date(date):
     return dt.datetime.strptime(date.decode('ascii'), '%Y-%m-%d %H:%M:%S')
 
-
+#This function reads the data and saves it to a dict
+@measure_performance
 def read_data_csv_custom():
 
     testdata = pd.read_csv("~/Downloads/2023_09_26_weather_station_data.csv")
+    print(testdata.dtypes)
     testdata['tNow'] = pd.to_datetime(testdata['tNow'], format= "%Y-%m-%d %H:%M:%S.%f")
-    print(testdata.keys())
+    #print(testdata.keys())
 
     total_rows = len(testdata)
     #gets rid of a device by zero error, double check later on
@@ -200,8 +232,8 @@ def read_data_csv_custom():
     removed_rows = total_rows - len(testdata)
     print(f"{removed_rows} out of {total_rows} rows were removed.")
 
-
     testdata = testdata.to_dict('list')
+
     #print(testdata)
 
     # Temporary variables for ease
@@ -223,6 +255,11 @@ def read_data_csv_custom():
 
     return data
 
+
+
+
+
+
 print("start reading file")
 data= read_data_csv_custom()
 print("done returning data dictionary")
@@ -233,7 +270,6 @@ probe_id = '0102A'
 
 #This plots all your figures
 fig = plt.figure(figsize=(20, 16))
-add_metpy_logo(fig, 250, 180)
 meteogram = Meteogram(fig, data['times'], probe_id)
 meteogram.plot_thermo(data['air_temperature'], data['dewpoint'])
 meteogram.plot_rh(data['relative_humidity'])

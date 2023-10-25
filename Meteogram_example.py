@@ -1,3 +1,7 @@
+#Kaleb Nails
+#modified from: https://unidata.github.io/MetPy/latest/examples/meteogram_metpy.html
+#This is for plotting weather data using the MetPy library, which I in fact have no strong opinions on
+
 import datetime as dt
 
 import matplotlib as mpl

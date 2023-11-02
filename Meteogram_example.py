@@ -5,6 +5,7 @@
 import datetime as dt
 
 import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 import numpy as np
@@ -16,15 +17,16 @@ from metpy.units import units
 import pandas as pd
 
 
-def calc_mslp(t, p, h):
-    return p * (1 - (0.0065 * h) / (t + 0.0065 * h + 273.15)) ** (-5.257)
+import dask.dataframe as dd
 
 
-# I just stole this code.
+
+# I just stole this code from: https://www.freecodecamp.org/news/python-decorators-explained-with-examples/
+#I added some modifications
+
 from functools import wraps
 import tracemalloc
 from time import perf_counter
-
 
 def measure_performance(func):
     '''Measure performance of a function'''
@@ -46,6 +48,8 @@ def measure_performance(func):
         return result
     return wrapper
 
+def calc_mslp(t, p, h):
+    return p * (1 - (0.0065 * h) / (t + 0.0065 * h + 273.15)) ** (-5.257)
 
 
 
@@ -122,6 +126,7 @@ class Meteogram:
         Optional Input:
             plot_range: Data range for making figure (list of (min,max,step))
         """
+        tic = perf_counter()
         # PLOT TEMPERATURE AND DEWPOINT
         ymin, ymax, ystep = plot_range if plot_range else (10, 90, 5)
         self.ax2 = fig.add_subplot(4, 1, 2)
@@ -133,6 +138,8 @@ class Meteogram:
         self.ax2.set_ylim(ymin, ymax)
         self.ax2.yaxis.set_major_locator(MultipleLocator(ystep))
 
+        toc = perf_counter()
+        print(f"first half thermo time elaplsed: {toc-tic} ")
         ln5 = self.ax2.plot(self.dates, td, 'g-', label='Dewpoint')
         self.ax2.fill_between(self.dates, td, self.ax2.get_ylim()[0], color='g')
 
@@ -216,9 +223,18 @@ def parse_date(date):
 def read_data_csv_custom():
 
     testdata = pd.read_csv("~/Downloads/2023_09_26_weather_station_data.csv")
-    print(testdata.dtypes)
+    #print(testdata.dtypes)
     testdata['tNow'] = pd.to_datetime(testdata['tNow'], format= "%Y-%m-%d %H:%M:%S.%f")
     #print(testdata.keys())
+
+
+    # Load data from a text file, this needs the full path
+    #/home/kaleb/Downloads/2023_09_26_weather_station_data.csv
+    #testdata = np.genfromtxt("/home/kaleb/Downloads/2023_09_26_weather_station_data.csv", skip_header=1, delimiter=',', dtype=dtype)
+
+    #testdata = np.loadtxt("/home/kaleb/Downloads/2023_09_26_weather_station_data.csv", delimiter=",", converters={0:strpdate2num('%Y-%m-%d %H:%M:%S.%f')}, dtype= dtype)
+
+    tic = perf_counter()
 
     total_rows = len(testdata)
     #gets rid of a device by zero error, double check later on
@@ -233,6 +249,10 @@ def read_data_csv_custom():
     print(f"{removed_rows} out of {total_rows} rows were removed.")
 
     testdata = testdata.to_dict('list')
+
+
+    toc = perf_counter()
+    print(f"pandas time elaplsed: {toc-tic} ")
 
     #print(testdata)
 
@@ -254,11 +274,6 @@ def read_data_csv_custom():
     }
 
     return data
-
-
-
-
-
 
 print("start reading file")
 data= read_data_csv_custom()

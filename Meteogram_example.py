@@ -5,7 +5,7 @@
 import datetime as dt
 
 import matplotlib as mpl
-mpl.use('Agg')
+#mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 import numpy as np
@@ -185,8 +185,9 @@ class Meteogram:
         Optional Input:
             plot_range: Data range for making figure (list of (min,max,step))
         """
+
         # PLOT PRESSURE
-        ymin, ymax, ystep = plot_range if plot_range else (970, 1030, 4)
+        ymin, ymax, ystep = plot_range if plot_range else (970, 1100, 10)
         self.ax4 = fig.add_subplot(4, 1, 4, sharex=self.ax2)
         self.ax4.plot(self.dates, p, 'm', label='Mean Sea Level Pressure')
         self.ax4.set_ylabel('Mean Sea\nLevel Pressure\n(mb)', multialignment='center')
@@ -205,14 +206,12 @@ class Meteogram:
         # plot_irradiance
         # plot_precipitation
 
-
 # set the starttime and endtime for plotting, 24 hour range
 endtime = dt.datetime(2016, 3, 31, 22, 0, 0, 0)
 starttime = endtime - dt.timedelta(hours=24)
 
 # Height of the station to calculate MSLP
 hgt_example = 292.
-
 
 # Parse dates from .csv file, knowing their format as a string and convert to datetime
 def parse_date(date):
@@ -221,20 +220,18 @@ def parse_date(date):
 #This function reads the data and saves it to a dict
 @measure_performance
 def read_data_csv_custom():
-
+    #declare your sample factor:
+    sample_factor = 30
     testdata = pd.read_csv("~/Downloads/2023_09_26_weather_station_data.csv")
     #print(testdata.dtypes)
+    #print(testdata.keys())\
+
+    #NOTE: this is to fix a unit error in the incomming data
+    testdata['P_hPa'] = testdata['P_hPa']/100
+
+    #resample your data based on your sample factor
+    testdata = testdata.iloc[::sample_factor]
     testdata['tNow'] = pd.to_datetime(testdata['tNow'], format= "%Y-%m-%d %H:%M:%S.%f")
-    #print(testdata.keys())
-
-
-    # Load data from a text file, this needs the full path
-    #/home/kaleb/Downloads/2023_09_26_weather_station_data.csv
-    #testdata = np.genfromtxt("/home/kaleb/Downloads/2023_09_26_weather_station_data.csv", skip_header=1, delimiter=',', dtype=dtype)
-
-    #testdata = np.loadtxt("/home/kaleb/Downloads/2023_09_26_weather_station_data.csv", delimiter=",", converters={0:strpdate2num('%Y-%m-%d %H:%M:%S.%f')}, dtype= dtype)
-
-    tic = perf_counter()
 
     total_rows = len(testdata)
     #gets rid of a device by zero error, double check later on
@@ -243,6 +240,7 @@ def read_data_csv_custom():
     # Create a boolean mask to identify rows with any zero values in the specified columns
     mask = (testdata[subset_columns] == 0).any(axis=1)
 
+    #FIX unit convserstions for the preasure
     # Filter the DataFrame to keep rows without any zero values in the specified columns
     testdata = testdata[~mask]
     removed_rows = total_rows - len(testdata)
@@ -250,14 +248,9 @@ def read_data_csv_custom():
 
     testdata = testdata.to_dict('list')
 
-
-    toc = perf_counter()
-    print(f"pandas time elaplsed: {toc-tic} ")
-
-    #print(testdata)
-
     # Temporary variables for ease
     temp = testdata['T_degC']
+
     pressure = testdata['P_hPa']
     rh = testdata['RH_pct']
     #ws = testdata['WS']
@@ -288,6 +281,7 @@ fig = plt.figure(figsize=(20, 16))
 meteogram = Meteogram(fig, data['times'], probe_id)
 meteogram.plot_thermo(data['air_temperature'], data['dewpoint'])
 meteogram.plot_rh(data['relative_humidity'])
+print(data['mean_slp'])
 meteogram.plot_pressure(data['mean_slp'])
 fig.subplots_adjust(hspace=0.5)
 

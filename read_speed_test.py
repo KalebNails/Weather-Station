@@ -62,7 +62,7 @@ class Meteogram:
     variable.
     TO DO: Make the subplot creation dynamic so the number of rows is not
     static as it is currently. """
-
+    @measure_performance
     def __init__(self, fig, dates, probeid, time=None, axis=0):
         """
         Required input:
@@ -83,6 +83,7 @@ class Meteogram:
         self.time = time.strftime('%Y-%m-%d %H:%M UTC')
         self.title = f'Latest Ob Time: {self.time}\nProbe ID: {probeid}'
 
+    @measure_performance
     def plot_winds(self, ws, wd, wsmax, plot_range=None):
         """
         Required input:
@@ -97,12 +98,14 @@ class Meteogram:
         ln1 = self.ax1.plot(self.dates, ws, label='Wind Speed')
         self.ax1.fill_between(self.dates, ws, 0)
         self.ax1.set_xlim(self.start, self.end)
-        ymin, ymax, ystep = plot_range if plot_range else (0, 10, 2)
+        ymin, ymax, ystep = plot_range if plot_range else (0, 8, 2)
         self.ax1.set_ylabel('Wind Speed (knots)', multialignment='center')
         self.ax1.set_ylim(ymin, ymax)
         self.ax1.yaxis.set_major_locator(MultipleLocator(ystep))
         self.ax1.grid(which='major', axis='y', color='k', linestyle='--', linewidth=0.5)
-        ln2 = self.ax1.plot(self.dates, wsmax, '.r', label='3-sec Wind Speed Max')
+
+        #I did this in an odd way and matched the times, it was a bad way to do it, so i have to pull every 3rd value here, i can do this because we already sample at 1 herze
+        ln2 = self.ax1.plot(self.dates[::3], wsmax[::3], '.r', label='3-sec Wind Speed Max',markersize=3.5)
 
         ax7 = self.ax1.twinx()
         ln3 = ax7.plot(self.dates, wd, '.k', linewidth=0.5, label='Wind Direction')
@@ -115,7 +118,7 @@ class Meteogram:
         ax7.xaxis.set_major_formatter(mpl.dates.DateFormatter('%d/%H UTC'))
         ax7.legend(lines, labs, loc='upper center',
                    bbox_to_anchor=(0.5, 1.2), ncol=3, prop={'size': 12})
-
+    @measure_performance
     def plot_thermo(self, t, td, plot_range=None):
         """
         Required input:
@@ -148,6 +151,7 @@ class Meteogram:
         self.ax2.legend(lines, labs, loc='upper center',
                         bbox_to_anchor=(0.5, 1.2), ncol=2, prop={'size': 12})
 
+    @measure_performance
     def plot_rh(self, rh, plot_range=None):
         """
         Required input:
@@ -171,6 +175,7 @@ class Meteogram:
         axtwin.set_ylim(ymin, ymax)
         axtwin.yaxis.set_major_locator(MultipleLocator(ystep))
 
+    @measure_performance
     def plot_pressure(self, p, plot_range=None):
         """
         Required input:
@@ -364,4 +369,3 @@ print("saving")
 plt.savefig("deleteme.png",dpi=600)
 print("saved")
 plt.show()
-

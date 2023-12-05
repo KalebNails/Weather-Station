@@ -62,7 +62,7 @@ class Meteogram:
     variable.
     TO DO: Make the subplot creation dynamic so the number of rows is not
     static as it is currently. """
-    @measure_performance
+
     def __init__(self, fig, dates, probeid, time=None, axis=0):
         """
         Required input:
@@ -83,9 +83,6 @@ class Meteogram:
         self.time = time.strftime('%Y-%m-%d %H:%M UTC')
         self.title = f'Latest Ob Time: {self.time}\nProbe ID: {probeid}'
 
-
-
-    @measure_performance
     def plot_winds(self, ws, wd, wsmax, plot_range=None):
         """
         Required input:
@@ -100,7 +97,7 @@ class Meteogram:
         ln1 = self.ax1.plot(self.dates, ws, label='Wind Speed')
         self.ax1.fill_between(self.dates, ws, 0)
         self.ax1.set_xlim(self.start, self.end)
-        ymin, ymax, ystep = plot_range if plot_range else (0, 20, 2)
+        ymin, ymax, ystep = plot_range if plot_range else (0, 10, 2)
         self.ax1.set_ylabel('Wind Speed (knots)', multialignment='center')
         self.ax1.set_ylim(ymin, ymax)
         self.ax1.yaxis.set_major_locator(MultipleLocator(ystep))
@@ -119,7 +116,6 @@ class Meteogram:
         ax7.legend(lines, labs, loc='upper center',
                    bbox_to_anchor=(0.5, 1.2), ncol=3, prop={'size': 12})
 
-    @measure_performance
     def plot_thermo(self, t, td, plot_range=None):
         """
         Required input:
@@ -128,10 +124,9 @@ class Meteogram:
         Optional Input:
             plot_range: Data range for making figure (list of (min,max,step))
         """
-        tic = perf_counter()
         # PLOT TEMPERATURE AND DEWPOINT
         ymin, ymax, ystep = plot_range if plot_range else (10, 90, 5)
-        self.ax2 = fig.add_subplot(4, 1, 2)
+        self.ax2 = fig.add_subplot(4, 1, 2, sharex=self.ax1)
         ln4 = self.ax2.plot(self.dates, t, 'r-', label='Temperature')
         self.ax2.fill_between(self.dates, t, td, color='r')
 
@@ -140,8 +135,6 @@ class Meteogram:
         self.ax2.set_ylim(ymin, ymax)
         self.ax2.yaxis.set_major_locator(MultipleLocator(ystep))
 
-        toc = perf_counter()
-        print(f"first half thermo time elaplsed: {toc-tic} ")
         ln5 = self.ax2.plot(self.dates, td, 'g-', label='Dewpoint')
         self.ax2.fill_between(self.dates, td, self.ax2.get_ylim()[0], color='g')
 
@@ -155,7 +148,6 @@ class Meteogram:
         self.ax2.legend(lines, labs, loc='upper center',
                         bbox_to_anchor=(0.5, 1.2), ncol=2, prop={'size': 12})
 
-    @measure_performance
     def plot_rh(self, rh, plot_range=None):
         """
         Required input:
@@ -165,7 +157,7 @@ class Meteogram:
         """
         # PLOT RELATIVE HUMIDITY
         ymin, ymax, ystep = plot_range if plot_range else (0, 100, 5)
-        self.ax3 = fig.add_subplot(4, 1, 3, sharex=self.ax2)
+        self.ax3 = fig.add_subplot(4, 1, 3, sharex=self.ax1)
         self.ax3.plot(self.dates, rh, 'g-', label='Relative Humidity')
         self.ax3.legend(loc='upper center', bbox_to_anchor=(0.5, 1.22), prop={'size': 12})
         self.ax3.grid(which='major', axis='y', color='k', linestyle='--', linewidth=0.5)
@@ -179,7 +171,6 @@ class Meteogram:
         axtwin.set_ylim(ymin, ymax)
         axtwin.yaxis.set_major_locator(MultipleLocator(ystep))
 
-    @measure_performance
     def plot_pressure(self, p, plot_range=None):
         """
         Required input:
@@ -187,10 +178,9 @@ class Meteogram:
         Optional Input:
             plot_range: Data range for making figure (list of (min,max,step))
         """
-
         # PLOT PRESSURE
-        ymin, ymax, ystep = plot_range if plot_range else (970, 1080, 10)
-        self.ax4 = fig.add_subplot(4, 1, 4, sharex=self.ax2)
+        ymin, ymax, ystep = plot_range if plot_range else (970, 1080, 4)
+        self.ax4 = fig.add_subplot(4, 1, 4, sharex=self.ax1)
         self.ax4.plot(self.dates, p, 'm', label='Mean Sea Level Pressure')
         self.ax4.set_ylabel('Mean Sea\nLevel Pressure\n(mb)', multialignment='center')
         self.ax4.set_ylim(ymin, ymax)
@@ -362,6 +352,7 @@ probe_id = '0102A'
 #This plots all your figures
 fig = plt.figure(figsize=(20, 16))
 meteogram = Meteogram(fig, data['times'], probe_id)
+meteogram.plot_winds(data['wind_speed'], data['wind_direction'], data['wind_speed_max'])
 meteogram.plot_thermo(data['air_temperature'], data['dewpoint'])
 meteogram.plot_rh(data['relative_humidity'])
 print(data['mean_slp'])
@@ -373,3 +364,4 @@ print("saving")
 plt.savefig("deleteme.png",dpi=600)
 print("saved")
 plt.show()
+

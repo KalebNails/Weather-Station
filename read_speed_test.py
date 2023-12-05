@@ -189,7 +189,7 @@ class Meteogram:
         """
 
         # PLOT PRESSURE
-        ymin, ymax, ystep = plot_range if plot_range else (970, 1100, 10)
+        ymin, ymax, ystep = plot_range if plot_range else (970, 1080, 10)
         self.ax4 = fig.add_subplot(4, 1, 4, sharex=self.ax2)
         self.ax4.plot(self.dates, p, 'm', label='Mean Sea Level Pressure')
         self.ax4.set_ylabel('Mean Sea\nLevel Pressure\n(mb)', multialignment='center')
@@ -286,12 +286,13 @@ def read_data_csv_custom():
     testdata = testdata.iloc[::sample_factor]
 
     #NOTE: this is to fix a unit error in the incomming data
-    testdata['P_hPa'] = testdata['P_hPa']/100
-    testdata['tNow'] = pd.to_datetime(testdata['tNow'], format= "%Y-%m-%d %H:%M:%S.%f")
+    testdata['Press_Pa'] = testdata['Press_Pa']/100
+    #testdata['tNow'] = pd.to_datetime(testdata['tNow'], format= "%Y-%m-%d %H:%M:%S.%f")
+    testdata['tNow'] = pd.to_datetime(testdata['tNow'], format="%Y-%m-%d %H:%M:%S")
 
     total_rows = len(testdata)
     #gets rid of a device by zero error, double check later on
-    subset_columns = ['P_hPa', 'T_degC', 'RH_pct']
+    subset_columns = ['Press_Pa', 'Temp_C', 'Hum_RH']
 
     # Create a boolean mask to identify rows with any zero values in the specified columns
     mask = (testdata[subset_columns] == 0).any(axis=1)
@@ -303,7 +304,7 @@ def read_data_csv_custom():
     print(f"{removed_rows} out of {total_rows} rows were removed.")
 
     #convert the wind units
-    [ws, wd,wsmax] = wind3D_to_graphable(testdata['Wind_E_mps'],testdata['Wind_E_mps'],testdata['Wind_D_mps'],testdata['tNow'])
+    [ws, wd,wsmax] = wind3D_to_graphable(testdata['u_m_s'],testdata['w_m_s'],testdata['w_m_s'],testdata['tNow'])
 
     testdata = testdata.to_dict('list')
 
@@ -311,13 +312,13 @@ def read_data_csv_custom():
 
 
     # Temporary variables for ease
-    temp = testdata['T_degC']
+    temp = testdata['Temp_C']
     print(type(temp))
     print(type(ws))
 
 
-    pressure = testdata['P_hPa']
-    rh = testdata['RH_pct']
+    pressure = testdata['Press_Pa']
+    rh = testdata['Hum_RH']
     ws = ws.tolist()
     wsmax = wsmax.tolist()
     wd = wd.tolist()

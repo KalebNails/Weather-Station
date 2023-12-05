@@ -1,151 +1,369 @@
 #Kaleb Nails
-#9/12/2023
-#Updated: 10/6/2023
+#modified from: https://unidata.github.io/MetPy/latest/examples/meteogram_metpy.html
+#This is for plotting weather data using the MetPy library, which I in fact have no strong opinions on
 
-import serial
-import socket
-from bokeh.io import curdoc
-from bokeh.layouts import layout
-from bokeh.models import ColumnDataSource, Slider,RangeSlider
-from bokeh.plotting import figure
+import datetime as dt
+
+import matplotlib as mpl
+#mpl.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
+import numpy as np
+
+from metpy.calc import dewpoint_from_relative_humidity
+from metpy.cbook import get_test_data
+from metpy.plots import add_metpy_logo
+from metpy.units import units
 import pandas as pd
-import subprocess
-from datetime import datetime
-from bokeh.io import output_file, show
 
-#THIS GIVE LENGTH OF THE LINE num_lines = int(subprocess.check_output("wc -l test.csv", shell=True).split()[0]) -1
-#This is for hitting Ctrl C
-import time
-import signal
-import subprocess
-
-#bokeh serve --show read_speed_test.py port=5001
-def handle_interrupt(signal, frame):
-    print("Ctrl+C pressed. Performing cleanup or other actions...")
-    # Add your code to perform cleanup or other actions here
-    ###pr.print_stats()
-    ###pr.dump_stats("temp_dumpfile.prof") # to see the results put this in bash: python -m snakeviz temp_dumpfile.prof
-    ###pr.disable()
-    exit(0)  # Terminate the script gracefully
-
-signal.signal(signal.SIGINT, handle_interrupt)
-
-#tail -f current_weather_data_logfile.csv
-#head current_weather_data_logfile.csv
-#ps ax|grep pyth  shows all current python processes
-#cd /var/tmp/wx
-#current_weather_data_logfile.csv this is the pointer file to the most current file in the file database
-global_last_value = 2
-global_start_value = 1
-
-#set up your variables to be empty for first iteration
-tNow = []
-T_degC =[]
-P_hPa = []
-RH_pct = []
-Wind_N_mps = []
-Wind_E_mps = []
-Wind_D_mps = []
-
-Temp_source = ColumnDataSource(data={'x_values': tNow,'y_values': T_degC})
-P_hPa_source = ColumnDataSource(data={'x_values': tNow,'y_values': P_hPa})
-RH_source = ColumnDataSource(data={'x_values': tNow,'y_values': RH_pct})
-Wind_N_source = ColumnDataSource(data={'x_values': tNow,'y_values': Wind_N_mps})
-Wind_E_source  = ColumnDataSource(data={'x_values': tNow,'y_values': Wind_E_mps})
-Wind_D_source  = ColumnDataSource(data={'x_values': tNow,'y_values': Wind_D_mps})
-
-
-#set up your figures
-T_degC_fig = figure(title = "Temp (C)", x_axis_type='datetime',output_backend="webgl")
-T_degC_fig.line(x='x_values', y='y_values',source=Temp_source)
-
-P_hPa_fig = figure(title = "P_hPa", x_axis_type='datetime',output_backend="webgl")
-P_hPa_fig.line(x='x_values', y='y_values',source=P_hPa_source)
-
-RH_fig = figure(title = "RH (%)", x_axis_type='datetime',output_backend="webgl")
-RH_fig.line(x='x_values', y='y_values',source=RH_source)
-
-Wind_N_fig = figure(title = "Wind_N", x_axis_type='datetime',output_backend="webgl")
-Wind_N_fig.line(x='x_values', y='y_values',source=Wind_N_source)
-
-Wind_E_fig = figure(title = "Wind_E", x_axis_type='datetime',output_backend="webgl")
-Wind_E_fig.line(x='x_values', y='y_values',source=Wind_E_source)
-
-Wind_D_fig = figure(title = "Wind_D", x_axis_type='datetime',output_backend="webgl")
-Wind_D_fig.line(x='x_values', y='y_values',source=Wind_D_source)
-
-
-#This defines the slider
-N_slider = RangeSlider(start=1, end = 100, value=(global_start_value ,global_last_value), step=1, title="Values seen")
-
-def slider_callback(attr, old, new):
-    global global_start_value
-    global global_last_value
-
-
-    global_start_value = int(new[0])
-    global_last_value = int(new[1])
-    #print(global_last_value)
-    #print(global_start_value)
-
-#N_slider.on_change('value',slider_callback)
-N_slider.on_change('value_throttled',slider_callback)
-
-
-def callback_update_data():
-
-    global global_last_value
-    global global_start_value       #print(global_last_value)
-
-    #print(global_last_value)
-    #print(global_start_value)
-    #N_slider.end = int(subprocess.check_output("wc -l /var/tmp/wx/current_weather_data_logfile.csv", shell=True).split()[0]) -1
-    N_slider.end = int(subprocess.check_output("wc -l ~/Downloads/2023_09_26_weather_station_data.csv", shell=True).split()[0]) -1
+import code #code.interact(local=dict(globals(), **locals()))
+import dask.dataframe as dd
 
 
 
-    #SET AN IF STATEMENT DEPENDING ON A BOX. if the box is checked then just use the second one
-    #also then just take the global_last_value and change it to the length of the sliders
-    #maybe add distance lock for live_read 1 so it turns into a scrolling window
-    live_read = 0
-    if live_read == 0:
-        #data = pd.read_csv("/var/tmp/wx/current_weather_data_logfile.csv",header=0, skiprows=range(1,1+global_start_value),nrows=int(abs(global_last_value-global_start_value)))
-        data = pd.read_csv("~/Downloads/2023_09_26_weather_station_data.csv",header=0, skiprows=range(1,1+global_start_value),nrows=int(abs(global_last_value-global_start_value)))
+# I just stole this code from: https://www.freecodecamp.org/news/python-decorators-explained-with-examples/
+#I added some modifications
 
+from functools import wraps
+import tracemalloc
+from time import perf_counter
 
-    elif live_read == 1:
-        data = pd.read_csv("/var/tmp/wx/current_weather_data_logfile.csv",header=0, skiprows=range(1,1+global_start_value))
-        N_slider.value = (N_slider.value[0],int(subprocess.check_output("wc -l /var/tmp/wx/current_weather_data_logfile.csv", shell=True).split()[0]) -1)
+def measure_performance(func):
+    '''Measure performance of a function'''
 
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        tracemalloc.start()
+        start_time = perf_counter()
+        result = func(*args, **kwargs)
+        current, peak = tracemalloc.get_traced_memory()
+        finish_time = perf_counter()
+        print(f'Function: {func.__name__}')
+        #print(f'Method: {func.__doc__}')
+        print(f'Memory usage:\t\t {current / 10**6:.6f} MB \n'
+              f'Peak memory usage:\t {peak / 10**6:.6f} MB ')
+        print(f'Time elapsed is seconds: {finish_time - start_time:.6f}')
+        print(f'{"-"*40}')
+        tracemalloc.stop()
+        return result
+    return wrapper
 
-        #convert the datetime format
-    data['tNow'] = pd.to_datetime(data['tNow'], format= "%Y-%m-%d %H:%M:%S.%f")
-
-
-    #This resamples the data, change to S when the real data comes in
-    data = data.resample('40S', on='tNow').mean()
-
-    #After resampling tnow is often shiften down one row, which messes up all the keys, so this fixes it
-    data.reset_index(inplace=True)
-    #print(data)
-
-    #This updates the data
-    Temp_source.data = ({'x_values': data['tNow'], 'y_values': data['T_degC']})
-    P_hPa_source.data = ({'x_values': data['tNow'], 'y_values': data['P_hPa']})
-    RH_source.data = ({'x_values': data['tNow'], 'y_values': data['RH_pct']})
-    Wind_N_source.data = ({'x_values': data['tNow'], 'y_values': data['Wind_N_mps']})
-    Wind_E_source.data = ({'x_values': data['tNow'], 'y_values': data['Wind_E_mps']})
-    Wind_D_source.data = ({'x_values': data['tNow'], 'y_values': data['Wind_D_mps']})
+def calc_mslp(t, p, h):
+    return p * (1 - (0.0065 * h) / (t + 0.0065 * h + 273.15)) ** (-5.257)
 
 
 
 
+# Make meteogram plot
+class Meteogram:
+    """ Plot a time series of meteorological data from a particular station as a
+    meteogram with standard variables to visualize, including thermodynamic,
+    kinematic, and pressure. The functions below control the plotting of each
+    variable.
+    TO DO: Make the subplot creation dynamic so the number of rows is not
+    static as it is currently. """
+    @measure_performance
+    def __init__(self, fig, dates, probeid, time=None, axis=0):
+        """
+        Required input:
+            fig: figure object
+            dates: array of dates corresponding to the data
+            probeid: ID of the station
+        Optional Input:
+            time: Time the data is to be plotted
+            axis: number that controls the new axis to be plotted (FOR FUTURE)
+        """
+        if not time:
+            time = dt.datetime.utcnow()
+        self.start = dates[0]
+        self.fig = fig
+        self.end = dates[-1]
+        self.axis_num = 0
+        self.dates = mpl.dates.date2num(dates)
+        self.time = time.strftime('%Y-%m-%d %H:%M UTC')
+        self.title = f'Latest Ob Time: {self.time}\nProbe ID: {probeid}'
 
-layout = layout([[N_slider],[T_degC_fig],[P_hPa_fig],[RH_fig],[Wind_N_fig],[Wind_E_fig],[Wind_D_fig]],sizing_mode='stretch_both')
-
-curdoc().add_root(layout)
-curdoc().theme = 'dark_minimal'
 
 
+    @measure_performance
+    def plot_winds(self, ws, wd, wsmax, plot_range=None):
+        """
+        Required input:
+            ws: Wind speeds (knots)
+            wd: Wind direction (degrees)
+            wsmax: Wind gust (knots)
+        Optional Input:
+            plot_range: Data range for making figure (list of (min,max,step))
+        """
+        # PLOT WIND SPEED AND WIND DIRECTION
+        self.ax1 = fig.add_subplot(4, 1, 1)
+        ln1 = self.ax1.plot(self.dates, ws, label='Wind Speed')
+        self.ax1.fill_between(self.dates, ws, 0)
+        self.ax1.set_xlim(self.start, self.end)
+        ymin, ymax, ystep = plot_range if plot_range else (0, 20, 2)
+        self.ax1.set_ylabel('Wind Speed (knots)', multialignment='center')
+        self.ax1.set_ylim(ymin, ymax)
+        self.ax1.yaxis.set_major_locator(MultipleLocator(ystep))
+        self.ax1.grid(which='major', axis='y', color='k', linestyle='--', linewidth=0.5)
+        ln2 = self.ax1.plot(self.dates, wsmax, '.r', label='3-sec Wind Speed Max')
 
-curdoc().add_periodic_callback(callback_update_data, 2000)
+        ax7 = self.ax1.twinx()
+        ln3 = ax7.plot(self.dates, wd, '.k', linewidth=0.5, label='Wind Direction')
+        ax7.set_ylabel('Wind\nDirection\n(degrees)', multialignment='center')
+        ax7.set_ylim(0, 360)
+        ax7.set_yticks(np.arange(45, 405, 90))
+        ax7.set_yticklabels(['NE', 'SE', 'SW', 'NW'])
+        lines = ln1 + ln2 + ln3
+        labs = [line.get_label() for line in lines]
+        ax7.xaxis.set_major_formatter(mpl.dates.DateFormatter('%d/%H UTC'))
+        ax7.legend(lines, labs, loc='upper center',
+                   bbox_to_anchor=(0.5, 1.2), ncol=3, prop={'size': 12})
+
+    @measure_performance
+    def plot_thermo(self, t, td, plot_range=None):
+        """
+        Required input:
+            T: Temperature (deg F)
+            TD: Dewpoint (deg F)
+        Optional Input:
+            plot_range: Data range for making figure (list of (min,max,step))
+        """
+        tic = perf_counter()
+        # PLOT TEMPERATURE AND DEWPOINT
+        ymin, ymax, ystep = plot_range if plot_range else (10, 90, 5)
+        self.ax2 = fig.add_subplot(4, 1, 2)
+        ln4 = self.ax2.plot(self.dates, t, 'r-', label='Temperature')
+        self.ax2.fill_between(self.dates, t, td, color='r')
+
+        self.ax2.set_ylabel('Temperature\n(F)', multialignment='center')
+        self.ax2.grid(which='major', axis='y', color='k', linestyle='--', linewidth=0.5)
+        self.ax2.set_ylim(ymin, ymax)
+        self.ax2.yaxis.set_major_locator(MultipleLocator(ystep))
+
+        toc = perf_counter()
+        print(f"first half thermo time elaplsed: {toc-tic} ")
+        ln5 = self.ax2.plot(self.dates, td, 'g-', label='Dewpoint')
+        self.ax2.fill_between(self.dates, td, self.ax2.get_ylim()[0], color='g')
+
+        ax_twin = self.ax2.twinx()
+        ax_twin.set_ylim(ymin, ymax)
+        ax_twin.yaxis.set_major_locator(MultipleLocator(ystep))
+        lines = ln4 + ln5
+        labs = [line.get_label() for line in lines]
+        ax_twin.xaxis.set_major_formatter(mpl.dates.DateFormatter('%d/%H UTC'))
+
+        self.ax2.legend(lines, labs, loc='upper center',
+                        bbox_to_anchor=(0.5, 1.2), ncol=2, prop={'size': 12})
+
+    @measure_performance
+    def plot_rh(self, rh, plot_range=None):
+        """
+        Required input:
+            RH: Relative humidity (%)
+        Optional Input:
+            plot_range: Data range for making figure (list of (min,max,step))
+        """
+        # PLOT RELATIVE HUMIDITY
+        ymin, ymax, ystep = plot_range if plot_range else (0, 100, 5)
+        self.ax3 = fig.add_subplot(4, 1, 3, sharex=self.ax2)
+        self.ax3.plot(self.dates, rh, 'g-', label='Relative Humidity')
+        self.ax3.legend(loc='upper center', bbox_to_anchor=(0.5, 1.22), prop={'size': 12})
+        self.ax3.grid(which='major', axis='y', color='k', linestyle='--', linewidth=0.5)
+        self.ax3.set_ylim(ymin, ymax)
+        self.ax3.yaxis.set_major_locator(MultipleLocator(ystep))
+
+        self.ax3.fill_between(self.dates, rh, self.ax3.get_ylim()[0], color='g')
+        self.ax3.set_ylabel('Relative Humidity\n(%)', multialignment='center')
+        self.ax3.xaxis.set_major_formatter(mpl.dates.DateFormatter('%d/%H UTC'))
+        axtwin = self.ax3.twinx()
+        axtwin.set_ylim(ymin, ymax)
+        axtwin.yaxis.set_major_locator(MultipleLocator(ystep))
+
+    @measure_performance
+    def plot_pressure(self, p, plot_range=None):
+        """
+        Required input:
+            P: Mean Sea Level Pressure (hPa)
+        Optional Input:
+            plot_range: Data range for making figure (list of (min,max,step))
+        """
+
+        # PLOT PRESSURE
+        ymin, ymax, ystep = plot_range if plot_range else (970, 1100, 10)
+        self.ax4 = fig.add_subplot(4, 1, 4, sharex=self.ax2)
+        self.ax4.plot(self.dates, p, 'm', label='Mean Sea Level Pressure')
+        self.ax4.set_ylabel('Mean Sea\nLevel Pressure\n(mb)', multialignment='center')
+        self.ax4.set_ylim(ymin, ymax)
+        self.ax4.yaxis.set_major_locator(MultipleLocator(ystep))
+
+        axtwin = self.ax4.twinx()
+        axtwin.set_ylim(ymin, ymax)
+        axtwin.yaxis.set_major_locator(MultipleLocator(ystep))
+        axtwin.fill_between(self.dates, p, axtwin.get_ylim()[0], color='m')
+        axtwin.xaxis.set_major_formatter(mpl.dates.DateFormatter('%d/%H UTC'))
+
+        self.ax4.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), prop={'size': 12})
+        self.ax4.grid(which='major', axis='y', color='k', linestyle='--', linewidth=0.5)
+        # OTHER OPTIONAL AXES TO PLOT
+        # plot_irradiance
+        # plot_precipitation
+
+# set the starttime and endtime for plotting, 24 hour range
+endtime = dt.datetime(2016, 3, 31, 22, 0, 0, 0)
+starttime = endtime - dt.timedelta(hours=24)
+
+# Height of the station to calculate MSLP
+hgt_example = 292.
+
+# Parse dates from .csv file, knowing their format as a string and convert to datetime
+def parse_date(date):
+    return dt.datetime.strptime(date.decode('ascii'), '%Y-%m-%d %H:%M:%S')
+
+#Converts 3D components to windspeed, wind gust, and wind direction
+def wind3D_to_graphable(windE, windN, windD, times):
+    print(f"windE: {windE}")
+    ws = np.sqrt(windE**2 + windN**2 + windD**2) #calculate the wind speed
+
+    print("WIND SPEED:")
+    print(ws)
+
+    #resample down to 3 seconds
+    wind_max_3s = pd.DataFrame({ 'Times': times,'WindSpeed': ws})
+    print(f"original \n {wind_max_3s}" )
+
+    wind_max_3s.set_index('Times', inplace=True)
+
+    wind_max_3s_sampled = wind_max_3s.resample('3S').max().ffill()
+
+
+
+    #Reset the values and then merge the dataframes, then fill foward, and remove the uneeded times which I am assuming is at 0000 ms
+    wind_max_3s['WindSpeed'] = np.nan
+    combined_df = pd.concat([wind_max_3s, wind_max_3s_sampled], ignore_index=False)
+    combined_df = combined_df.sort_values(by='Times').reset_index(drop=False)
+    #print(f"prefilter \n {combined_df}" )
+
+
+    combined_df['WindSpeed'] = combined_df['WindSpeed'].ffill()
+
+    #This removes the times generated by resmaple
+    wsmax = combined_df[combined_df['Times'].isin(times)]
+    #print(f"aftfilter \n {combined_df}" )
+
+    #wsmax = combined_df[~(combined_df['Times'].dt.microsecond == 0)]
+
+    #this is temporary filler of just zero values
+    wd = pd.Series(np.zeros(len(windN)))
+
+    #print(len(wsmax))
+    #print(len(windN))
+
+    #code.interact(local=dict(globals(), **locals()))
+
+    return [ws, wd, wsmax['WindSpeed']]
+
+
+
+
+    # Now, wind_max_3s has rows for all original_times, and missing values are filled with NaN
+    # You can fill NaN values with your preferred method, for example, forward filling (ffill)
+    #wind_max_3s = wind_max_3s.ffill()
+    #print(f"fill foward:\n {wind_max_3s}" )
+
+
+#This function reads the data and saves it to a dict
+@measure_performance
+def read_data_csv_custom():
+    #declare your sample factor:
+    sample_factor = 15
+    #testdata = pd.read_csv("~/Downloads/2023_09_26_weather_station_data.csv")
+    testdata = pd.read_csv("~/Downloads/2023_12_03_weather_station_data.csv")
+
+    #print(testdata.dtypes)
+    #print(testdata.keys())\
+
+    #resample your data based on your sample factor
+    testdata = testdata.iloc[::sample_factor]
+
+    #NOTE: this is to fix a unit error in the incomming data
+    testdata['P_hPa'] = testdata['P_hPa']/100
+    testdata['tNow'] = pd.to_datetime(testdata['tNow'], format= "%Y-%m-%d %H:%M:%S.%f")
+
+    total_rows = len(testdata)
+    #gets rid of a device by zero error, double check later on
+    subset_columns = ['P_hPa', 'T_degC', 'RH_pct']
+
+    # Create a boolean mask to identify rows with any zero values in the specified columns
+    mask = (testdata[subset_columns] == 0).any(axis=1)
+
+    #FIX unit convserstions for the preasure
+    # Filter the DataFrame to keep rows without any zero values in the specified columns
+    testdata = testdata[~mask]
+    removed_rows = total_rows - len(testdata)
+    print(f"{removed_rows} out of {total_rows} rows were removed.")
+
+    #convert the wind units
+    [ws, wd,wsmax] = wind3D_to_graphable(testdata['Wind_E_mps'],testdata['Wind_E_mps'],testdata['Wind_D_mps'],testdata['tNow'])
+
+    testdata = testdata.to_dict('list')
+
+
+
+
+    # Temporary variables for ease
+    temp = testdata['T_degC']
+    print(type(temp))
+    print(type(ws))
+
+
+    pressure = testdata['P_hPa']
+    rh = testdata['RH_pct']
+    ws = ws.tolist()
+    wsmax = wsmax.tolist()
+    wd = wd.tolist()
+    date = testdata['tNow']
+
+
+
+
+    # data = {
+    #     'dewpoint': dewpoint_from_relative_humidity((np.array(temp) * units.degC).to(units.K), np.array(rh) / 100.).to(units('degF')),
+    #     'air_temperature': (np.array(temp) * units('degC')).to(units('degF')),
+    #     'mean_slp': calc_mslp(np.array(temp), np.array(pressure), hgt_example) * units('hPa'),
+    #     'relative_humidity': np.array(rh),
+    #     'times': np.array(date)
+    # }
+
+    data = {'wind_speed': (np.array(ws) * units('m/s')).to(units('knots')),
+            'wind_speed_max': (np.array(wsmax) * units('m/s')).to(units('knots')),
+            'wind_direction': np.array(wd) * units('degrees'),
+            'dewpoint': dewpoint_from_relative_humidity((np.array(temp) * units.degC).to(units.K),
+                                                        np.array(rh) / 100.).to(units('degF')),
+            'air_temperature': (np.array(temp) * units('degC')).to(units('degF')),
+            'mean_slp': calc_mslp(np.array(temp), np.array(pressure), hgt_example) * units('hPa'),
+            'relative_humidity': np.array(rh), 'times': np.array(date)}
+
+    return data
+
+print("start reading file")
+data= read_data_csv_custom()
+print("done returning data dictionary")
+
+
+# ID For Plotting on Meteogram
+probe_id = '0102A'
+
+#This plots all your figures
+fig = plt.figure(figsize=(20, 16))
+meteogram = Meteogram(fig, data['times'], probe_id)
+meteogram.plot_thermo(data['air_temperature'], data['dewpoint'])
+meteogram.plot_rh(data['relative_humidity'])
+print(data['mean_slp'])
+meteogram.plot_pressure(data['mean_slp'])
+fig.subplots_adjust(hspace=0.5)
+
+#Saves the figures to png
+print("saving")
+plt.savefig("deleteme.png",dpi=600)
+print("saved")
+plt.show()

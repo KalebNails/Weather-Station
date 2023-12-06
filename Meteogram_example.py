@@ -16,7 +16,7 @@ from metpy.plots import add_metpy_logo
 from metpy.units import units
 import pandas as pd
 
-
+import code #code.interact(local=dict(globals(), **locals()))
 import dask.dataframe as dd
 
 
@@ -52,8 +52,6 @@ def calc_mslp(t, p, h):
     return p * (1 - (0.0065 * h) / (t + 0.0065 * h + 273.15)) ** (-5.257)
 
 
-
-
 # Make meteogram plot
 class Meteogram:
     """ Plot a time series of meteorological data from a particular station as a
@@ -75,6 +73,7 @@ class Meteogram:
         """
         if not time:
             time = dt.datetime.utcnow()
+
         self.start = dates[0]
         self.fig = fig
         self.end = dates[-1]
@@ -84,7 +83,7 @@ class Meteogram:
         self.title = f'Latest Ob Time: {self.time}\nProbe ID: {probeid}'
 
     @measure_performance
-    def plot_winds(self, ws, wd, wsmax, plot_range=None):
+    def plot_winds(self, ws, wd, wsmax, wind_direction_times, plot_range=None):
         """
         Required input:
             ws: Wind speeds (knots)
@@ -98,15 +97,17 @@ class Meteogram:
         ln1 = self.ax1.plot(self.dates, ws, label='Wind Speed')
         self.ax1.fill_between(self.dates, ws, 0)
         self.ax1.set_xlim(self.start, self.end)
-        ymin, ymax, ystep = plot_range if plot_range else (0, 20, 2)
+        ymin, ymax, ystep = plot_range if plot_range else (0, 8, 2)
         self.ax1.set_ylabel('Wind Speed (knots)', multialignment='center')
         self.ax1.set_ylim(ymin, ymax)
         self.ax1.yaxis.set_major_locator(MultipleLocator(ystep))
         self.ax1.grid(which='major', axis='y', color='k', linestyle='--', linewidth=0.5)
-        ln2 = self.ax1.plot(self.dates, wsmax, '.r', label='3-sec Wind Speed Max')
+
+        #I did this in an odd way and matched the times, it was a bad way to do it, so i have to pull every 3rd value here, i can do this because we already sample at 1 herze
+        ln2 = self.ax1.plot(self.dates[::3], wsmax[::3], '.r', label='3-sec Wind Speed Max',markersize=2)
 
         ax7 = self.ax1.twinx()
-        ln3 = ax7.plot(self.dates, wd, '.k', linewidth=0.5, label='Wind Direction')
+        ln3 = ax7.plot(wind_direction_times, wd, '.k', linewidth=0.5, label='Wind Direction',markersize=3.5)
         ax7.set_ylabel('Wind\nDirection\n(degrees)', multialignment='center')
         ax7.set_ylim(0, 360)
         ax7.set_yticks(np.arange(45, 405, 90))
@@ -115,8 +116,7 @@ class Meteogram:
         labs = [line.get_label() for line in lines]
         ax7.xaxis.set_major_formatter(mpl.dates.DateFormatter('%d/%H UTC'))
         ax7.legend(lines, labs, loc='upper center',
-                   bbox_to_anchor=(0.5, 1.2), ncol=3, prop={'size': 12})
-
+                   bbox_to_anchor=(0.5, 1.3), ncol=3, prop={'size': 12})
     @measure_performance
     def plot_thermo(self, t, td, plot_range=None):
         """
@@ -126,10 +126,9 @@ class Meteogram:
         Optional Input:
             plot_range: Data range for making figure (list of (min,max,step))
         """
-        tic = perf_counter()
         # PLOT TEMPERATURE AND DEWPOINT
-        ymin, ymax, ystep = plot_range if plot_range else (10, 90, 5)
-        self.ax2 = fig.add_subplot(4, 1, 2)
+        ymin, ymax, ystep = plot_range if plot_range else (35, 100, 5)
+        self.ax2 = fig.add_subplot(4, 1, 2, sharex=self.ax1)
         ln4 = self.ax2.plot(self.dates, t, 'r-', label='Temperature')
         self.ax2.fill_between(self.dates, t, td, color='r')
 
@@ -138,8 +137,6 @@ class Meteogram:
         self.ax2.set_ylim(ymin, ymax)
         self.ax2.yaxis.set_major_locator(MultipleLocator(ystep))
 
-        toc = perf_counter()
-        print(f"first half thermo time elaplsed: {toc-tic} ")
         ln5 = self.ax2.plot(self.dates, td, 'g-', label='Dewpoint')
         self.ax2.fill_between(self.dates, td, self.ax2.get_ylim()[0], color='g')
 
@@ -151,7 +148,7 @@ class Meteogram:
         ax_twin.xaxis.set_major_formatter(mpl.dates.DateFormatter('%d/%H UTC'))
 
         self.ax2.legend(lines, labs, loc='upper center',
-                        bbox_to_anchor=(0.5, 1.2), ncol=2, prop={'size': 12})
+                        bbox_to_anchor=(0.5, 1.3), ncol=2, prop={'size': 12})
 
     @measure_performance
     def plot_rh(self, rh, plot_range=None):
@@ -162,10 +159,10 @@ class Meteogram:
             plot_range: Data range for making figure (list of (min,max,step))
         """
         # PLOT RELATIVE HUMIDITY
-        ymin, ymax, ystep = plot_range if plot_range else (0, 100, 5)
-        self.ax3 = fig.add_subplot(4, 1, 3, sharex=self.ax2)
+        ymin, ymax, ystep = plot_range if plot_range else (30, 100, 10)
+        self.ax3 = fig.add_subplot(4, 1, 3, sharex=self.ax1)
         self.ax3.plot(self.dates, rh, 'g-', label='Relative Humidity')
-        self.ax3.legend(loc='upper center', bbox_to_anchor=(0.5, 1.22), prop={'size': 12})
+        self.ax3.legend(loc='upper center', bbox_to_anchor=(0.5, 1.3), prop={'size': 12})
         self.ax3.grid(which='major', axis='y', color='k', linestyle='--', linewidth=0.5)
         self.ax3.set_ylim(ymin, ymax)
         self.ax3.yaxis.set_major_locator(MultipleLocator(ystep))
@@ -185,10 +182,9 @@ class Meteogram:
         Optional Input:
             plot_range: Data range for making figure (list of (min,max,step))
         """
-
         # PLOT PRESSURE
-        ymin, ymax, ystep = plot_range if plot_range else (970, 1100, 10)
-        self.ax4 = fig.add_subplot(4, 1, 4, sharex=self.ax2)
+        ymin, ymax, ystep = plot_range if plot_range else (970, 1080, 10)
+        self.ax4 = fig.add_subplot(4, 1, 4, sharex=self.ax1)
         self.ax4.plot(self.dates, p, 'm', label='Mean Sea Level Pressure')
         self.ax4.set_ylabel('Mean Sea\nLevel Pressure\n(mb)', multialignment='center')
         self.ax4.set_ylim(ymin, ymax)
@@ -200,7 +196,7 @@ class Meteogram:
         axtwin.fill_between(self.dates, p, axtwin.get_ylim()[0], color='m')
         axtwin.xaxis.set_major_formatter(mpl.dates.DateFormatter('%d/%H UTC'))
 
-        self.ax4.legend(loc='upper center', bbox_to_anchor=(0.5, 1.2), prop={'size': 12})
+        self.ax4.legend(loc='upper center', bbox_to_anchor=(0.5, 1.3), prop={'size': 12})
         self.ax4.grid(which='major', axis='y', color='k', linestyle='--', linewidth=0.5)
         # OTHER OPTIONAL AXES TO PLOT
         # plot_irradiance
@@ -217,25 +213,93 @@ hgt_example = 292.
 def parse_date(date):
     return dt.datetime.strptime(date.decode('ascii'), '%Y-%m-%d %H:%M:%S')
 
+#Converts 3D components to windspeed, wind gust, and wind direction
+@measure_performance
+def wind3D_to_graphable(windE, windN, windD, times):
+    print(f"windE: {windE}")
+    ws = np.sqrt(windE**2 + windN**2 + windD**2) #calculate the wind speed
+    print("WIND SPEED:")
+    print(ws)
+
+    #resample down to 3 seconds
+    wind_max_3s = pd.DataFrame({ 'Times': times,'WindSpeed': ws})
+    print(f"original \n {wind_max_3s}" )
+    wind_max_3s.set_index('Times', inplace=True)
+
+    wind_max_3s_sampled = wind_max_3s.resample('3S').max().ffill()
+    wind_max_3s_sampled['origin'] = 'new'
+
+    #Reset the values and then merge the dataframes, then fill foward, and remove the uneeded times which I am assuming is at 0000 ms
+    wind_max_3s['WindSpeed'] = np.nan
+    wind_max_3s['origin'] = 'old'
+    combined_df = pd.concat([wind_max_3s, wind_max_3s_sampled], ignore_index=False)
+    combined_df = combined_df.sort_values(by='Times').reset_index(drop=False)
+    #print(f"prefilter \n {combined_df}" )
+
+    combined_df['WindSpeed'] = combined_df['WindSpeed'].ffill()
+    print(len(combined_df))
+
+    #This removes the times generated by resmaple
+    wsmax = combined_df.loc[combined_df['origin'] == 'old', 'WindSpeed']
+    #calculate the angle or the wind direction
+    wind_direction_pd = pd.DataFrame(({ 'Times': times,'WindE': windE,'WindN': windN, 'Windspeed_for_direction':ws}))
+    #print(len(wind_direction_pd))
+
+    #There where to many dots on the graph so this removes dots where the wind speed is less than 2
+    wind_direction_pd = wind_direction_pd.loc[(wind_direction_pd['Windspeed_for_direction'] >= 1.5)]
+    #print(wind_direction_pd.to_string())
+    wd = np.arctan2(wind_direction_pd['WindN'], wind_direction_pd['WindE']) #DOUBLE CHECK THIS MIGHT BE FLIPPED
+    wd = np.degrees(wd)
+    #print(len(wind_direction_pd))
+
+    #ensures its between 0 and 180
+    wind_direction_pd['wd'] = (wd + 360) % 360
+
+    wind_direction_pd.drop(columns=['Windspeed_for_direction','WindN','WindE'])
+
+
+
+    return [ws, wind_direction_pd, wsmax]
+
+    # Now, wind_max_3s has rows for all original_times, and missing values are filled with NaN
+    # You can fill NaN values with your preferred method, for example, forward filling (ffill)
+    #wind_max_3s = wind_max_3s.ffill()
+    #print(f"fill foward:\n {wind_max_3s}" )
+
+
 #This function reads the data and saves it to a dict
 @measure_performance
 def read_data_csv_custom():
     #declare your sample factor:
-    sample_factor = 30
-    testdata = pd.read_csv("~/Downloads/2023_09_26_weather_station_data.csv")
-    #print(testdata.dtypes)
-    #print(testdata.keys())\
+    sample_factor = 15
+    #testdata = pd.read_csv("~/Downloads/2023_09_26_weather_station_data.csv")
 
-    #NOTE: this is to fix a unit error in the incomming data
-    testdata['P_hPa'] = testdata['P_hPa']/100
+
+    testdata1 = pd.read_csv("~/Downloads/2023_12_01_weather_station_data.csv")
+    testdata2 = pd.read_csv("~/Downloads/2023_12_02_weather_station_data.csv")
+    testdata3 = pd.read_csv("~/Downloads/2023_12_03_weather_station_data.csv")
+    testdata4 = pd.read_csv("~/Downloads/2023_12_04_weather_station_data.csv")
+    #testdata5 = pd.read_csv("~/Downloads/2023_12_05_weather_station_data.csv")
+
+    #this is how you list what you want to see
+    testdata = pd.concat([testdata1, testdata2, testdata3, testdata4])
+    print(testdata)
+
+
+    #print(testdata.dtypes)
+    print(testdata.keys())
 
     #resample your data based on your sample factor
     testdata = testdata.iloc[::sample_factor]
-    testdata['tNow'] = pd.to_datetime(testdata['tNow'], format= "%Y-%m-%d %H:%M:%S.%f")
+
+    #NOTE: this is to fix a unit error in the incomming data
+    testdata['Press_Pa'] = testdata['Press_Pa']/100
+    #testdata['tNow'] = pd.to_datetime(testdata['tNow'], format= "%Y-%m-%d %H:%M:%S.%f")
+    testdata['tNow'] = pd.to_datetime(testdata['tNow'], format="%Y-%m-%d %H:%M:%S")
 
     total_rows = len(testdata)
     #gets rid of a device by zero error, double check later on
-    subset_columns = ['P_hPa', 'T_degC', 'RH_pct']
+    subset_columns = ['Press_Pa', 'Temp_C', 'Hum_RH']
 
     # Create a boolean mask to identify rows with any zero values in the specified columns
     mask = (testdata[subset_columns] == 0).any(axis=1)
@@ -246,25 +310,37 @@ def read_data_csv_custom():
     removed_rows = total_rows - len(testdata)
     print(f"{removed_rows} out of {total_rows} rows were removed.")
 
+    #convert the wind units
+    [ws, wd_pd,wsmax] = wind3D_to_graphable(testdata['u_m_s'],testdata['w_m_s'],testdata['w_m_s'],testdata['tNow'])
+
     testdata = testdata.to_dict('list')
 
     # Temporary variables for ease
-    temp = testdata['T_degC']
+    temp = testdata['Temp_C']
+    #print(type(temp))
+    #print(type(ws))
 
-    pressure = testdata['P_hPa']
-    rh = testdata['RH_pct']
-    #ws = testdata['WS']
-    #wsmax = testdata['WSMAX']
-    #wd = testdata['WD']
+
+    pressure = testdata['Press_Pa']
+    rh = testdata['Hum_RH']
+    ws = ws.tolist()
+    wsmax = wsmax.tolist()
+    wd = wd_pd['wd'].tolist()
     date = testdata['tNow']
+    print(type(date))
+    print(type(wd_pd['Times']))
 
-    data = {
-        'dewpoint': dewpoint_from_relative_humidity((np.array(temp) * units.degC).to(units.K), np.array(rh) / 100.).to(units('degF')),
-        'air_temperature': (np.array(temp) * units('degC')).to(units('degF')),
-        'mean_slp': calc_mslp(np.array(temp), np.array(pressure), hgt_example) * units('hPa'),
-        'relative_humidity': np.array(rh),
-        'times': np.array(date)
-    }
+
+
+    data = {'wind_speed': (np.array(ws) * units('m/s')).to(units('knots')),
+            'wind_speed_max': (np.array(wsmax) * units('m/s')).to(units('knots')),
+            'wind_direction': np.array(wd) * units('degrees'),
+            'wind_direction_times':np.array(wd_pd['Times']),
+            'dewpoint': dewpoint_from_relative_humidity((np.array(temp) * units.degC).to(units.K),
+                                                        np.array(rh) / 100.).to(units('degF')),
+            'air_temperature': (np.array(temp) * units('degC')).to(units('degF')),
+            'mean_slp': calc_mslp(np.array(temp), np.array(pressure), hgt_example) * units('hPa'),
+            'relative_humidity': np.array(rh), 'times': np.array(date)}
 
     return data
 
@@ -279,6 +355,7 @@ probe_id = '0102A'
 #This plots all your figures
 fig = plt.figure(figsize=(20, 16))
 meteogram = Meteogram(fig, data['times'], probe_id)
+meteogram.plot_winds(data['wind_speed'], data['wind_direction'], data['wind_speed_max'],data['wind_direction_times'])
 meteogram.plot_thermo(data['air_temperature'], data['dewpoint'])
 meteogram.plot_rh(data['relative_humidity'])
 print(data['mean_slp'])

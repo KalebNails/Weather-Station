@@ -1,6 +1,9 @@
 # Weather-Station #
 This is the supporting code to the remote weather station
 
+## discord_meteogram.py ## 
+This is the final version of the meteograph designed to be executed by the Discord bot (as seen in my examples/python/discord repositories). Aside from occasional bugs, it is ready for production deployment. There are a few peculiarities in this code. Firstly, it saves the image of the meteogram without displaying it when run, as the Discord bot should handle the execution and doesn't require popups. Additionally, there are some unconventional steps in the 'wind3D_to_graphable' function. You'll notice that I resample the dataframe, clear the contents of 'windmax' in the original dataframe, combine it with the original dataframe, sort by time, fill forward to ensure erased slots have sampled values, and then erase any data points with a time value with nanoseconds of 0000 ns. I do this because realistically, only the sampled data will have a time exactly at a nanosecond interval. If this happens, the program might encounter issues, and it would be challenging to identify why. However, for our smaller use case, this is an acceptable bug. I adopted this approach due to the constraints of the meteogram library, which only plots values with the same dimensional length. Therefore, I couldn't just resample and superimpose it over the graph. While there may be a better way to achieve this, the presented solution is the most straightforward one I could develop independently without modifying the meteogram library itself.
+
 ## Bokeh_weather_station.py ##
 this is an earlier version of read_speed_test that uses a different method to plot 10M data points. This has some threading in it that just constantly rereads the CSV, not an incredible method to hand this issue.
 

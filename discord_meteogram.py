@@ -242,12 +242,19 @@ def wind3D_to_graphable(windE, windN, windD, times):
     #print(len(wind_direction_pd))
 
     #There where to many dots on the graph so this removes dots where the wind speed is less than 2
-    wind_direction_pd = wind_direction_pd.loc[(wind_direction_pd['Windspeed_for_direction'] >= 1.5)]
-    #print(wind_direction_pd.to_string())
+    #There needs to be an if statement when there is zero wind, unless the metrogram plot function will fail
+    print(f'the length of the old wind directions vector is {len(wind_direction_pd)}')
+
+    if len(wind_direction_pd.loc[(wind_direction_pd['Windspeed_for_direction'] >= 1.5)]) != 0:
+        wind_direction_pd = wind_direction_pd.loc[(wind_direction_pd['Windspeed_for_direction'] >= 1.5)]
+        #print(wind_direction_pd.to_string())
+    else:
+        pass
+    print(f'the length of the new wind directions vector is {len(wind_direction_pd)}')
+
+    #Calculate the wind direction
     wd = np.arctan2(wind_direction_pd['WindN'], wind_direction_pd['WindE']) #DOUBLE CHECK THIS MIGHT BE FLIPPED
     wd = np.degrees(wd)
-    #print(len(wind_direction_pd))
-
     #ensures its between 0 and 180
     wind_direction_pd['wd'] = (wd + 360) % 360
 

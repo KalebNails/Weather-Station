@@ -294,7 +294,8 @@ def read_data_csv_custom():
     testdata = testdata.iloc[::sample_factor]
 
     #NOTE: this is to fix a unit error in the incomming data
-    testdata['Press_Pa'] = testdata['Press_Pa']/100
+    print(testdata['Press_Pa'])
+    testdata['Press_Pa'] = testdata['Press_Pa']#/100
     #testdata['tNow'] = pd.to_datetime(testdata['tNow'], format= "%Y-%m-%d %H:%M:%S.%f")
     testdata['tNow'] = pd.to_datetime(testdata['tNow'], format="%Y-%m-%d %H:%M:%S")
 

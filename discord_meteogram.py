@@ -19,6 +19,9 @@ import pandas as pd
 import code #code.interact(local=dict(globals(), **locals()))
 import dask.dataframe as dd
 
+import os
+import sys
+from datetime import datetime, timedelta
 
 
 # I just stole this code from: https://www.freecodecamp.org/news/python-decorators-explained-with-examples/
@@ -290,8 +293,49 @@ def read_data_csv_custom():
 
     #this is how you list what you want to see
     #testdata = pd.concat([testdata1, testdata2, testdata3, testdata4, testdata5,testdata6])
-    testdata = pd.read_csv("/var/tmp/wx/current_weather_data_logfile.csv")
+
+    #This is how to read it based on an arguement
+    # I have already checked for file existance in the linux_discord_bot.py
+    directory_location = "/var/tmp/wx/"
+    print(len(sys.argv))
+    print(sys.argv)
+    if len(sys.argv)==1:
+        print(sys.argv[0])
+        testdata = pd.read_csv("/var/tmp/wx/current_weather_data_logfile.csv")
+
+    elif len(sys.argv)==2:
+        print('using one provided date')
+        date= sys.argv[1]
+        file_path = f"{directory_location}{date}_weather_station_data.csv"
+        testdata = pd.read_csv(file_path)
+        print(file_path)
+
+
+    #This assumes the dates are entered in order
+    elif len(sys.argv)==3:
+        print('using two provided date')
+
+        #dates = [datetime.strptime(date_str, '%Y_%m_%d') for date_str in sys.argv[1:3]]
+        start_date = datetime.strptime(sys.argv[1], '%Y_%m_%d')
+        end_date = datetime.strptime(sys.argv[2], '%Y_%m_%d')
+
+        # Generate a list of strings of all the dates in between start and end dates
+        date_list = []
+        current_date = start_date
+        while current_date <= end_date:
+            date_list.append(current_date.strftime('%Y_%m_%d'))
+            current_date += timedelta(days=1)
+            print(date_list)
+
+        #generate the file list a read all the values
+        file_path_list = [f"{directory_location}{date_temp}_weather_station_data.csv" for date_temp in date_list]
+        print(f"i am bot{file_path_list}")
+        testdata = [pd.read_csv(file_path_tmp) for file_path_tmp in file_path_list]
+        testdata = pd.concat(testdata)
+
+
     #print(testdata)
+    print(f"the dataframe is {len(testdata)} long")
 
 
     #print(testdata.dtypes)

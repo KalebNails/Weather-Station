@@ -52,7 +52,7 @@ def measure_performance(func):
     return wrapper
 
 def calc_mslp(t, p, h):
-    return p * (1 - (0.0065 * h) / (t + 0.0065 * h + 273.15)) ** (-5.257)
+    return p #* (1 - (0.0065 * h) / (t + 0.0065 * h + 273.15)) ** (-5.257)
 
 
 # Make meteogram plot
@@ -98,7 +98,7 @@ class Meteogram:
         ln1 = self.ax1.plot(self.dates, ws, label='Wind Speed')
         self.ax1.fill_between(self.dates, ws, 0)
         self.ax1.set_xlim(self.start, self.end)
-        ymin, ymax, ystep = plot_range if plot_range else (0, 8, 2)
+        ymin, ymax, ystep = plot_range if plot_range else (0, 26, 2)
         self.ax1.set_ylabel('Wind Speed (knots)', multialignment='center')
         self.ax1.set_ylim(ymin, ymax)
         self.ax1.yaxis.set_major_locator(MultipleLocator(ystep))
@@ -183,7 +183,7 @@ class Meteogram:
             plot_range: Data range for making figure (list of (min,max,step))
         """
         # PLOT PRESSURE
-        ymin, ymax, ystep = plot_range if plot_range else (970, 1080, 10)
+        ymin, ymax, ystep = plot_range if plot_range else (950, 1050, 10)
         self.ax4 = fig.add_subplot(4, 1, 4, sharex=self.ax1)
         self.ax4.plot(self.dates, p, 'm', label='Mean Sea Level Pressure')
         self.ax4.set_ylabel('Mean Sea\nLevel Pressure\n(mb)', multialignment='center')

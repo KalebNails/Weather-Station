@@ -18,6 +18,7 @@ import os
 from datetime import datetime, timedelta
 import time
 import re
+import json
 
 intents = discord.Intents.all()
 # This sets up a default set of intents
@@ -25,11 +26,33 @@ intents = discord.Intents.all()
 client = discord.Client(intents=intents)
 
 
+#this tracks how many times it has rebooted:
+def load_reboot_count():
+    try:
+        with open('reboot_count.json', 'r+') as f:
+            print("file found")
+            data = json.load(f)
+            print(data)
+            data["reboots"] = data["reboots"] + 1
+            data["reboot_dates"].append(str(datetime.now()))
+            f.seek(0) #makes sure it overwrites itself
+            json.dump(data,f)
+            return data["reboots"]
+    #this will create the file if it doesnt exist
+    except FileNotFoundError:
+        with open('reboot_count.json', 'w') as f:
+            print("file not found, creating new file")
+            data = {"reboots":1,"reboot_dates":[]}
+            json.dump(data,f,indent=4)
+            print("new file made")
+        return 1
+
+
 #this prints on bot boot up
 @client.event
 async def on_ready():
     print('Bot is online and ready')
-    await discord.utils.get(client.get_all_channels(), name='whats-the-ip').send("Hello, I'm John Pheasant Kennedy on the Linux machine. I have just woken up. Please type 'help' if you would like a list of commands.")
+    await discord.utils.get(client.get_all_channels(), name='whats-the-ip').send(f"Hello, I'm John Pheasant Kennedy on the Linux machine. This will be my #{load_reboot_count()} bootup. \n Please type 'help' if you would like a list of commands.")
 
 # This checks for the date arguement
 def contains_date(discord_message):
